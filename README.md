@@ -22,10 +22,9 @@ I'm using telegraf mqtt_consumer to get the data from TTN into my InfluxDB. Here
   username = "lorasensor"
   password = "ttn-account-v2.password"
   data_format = "json"
-
 ```
 
 
 ### Grafana
 
-I included my dashboard for these sensors. See (grafana_dashboard.json)[./grafana_dashboard.json]
+I included my dashboard for these sensors. See [grafana_dashboard.json](./grafana_dashboard.json)
