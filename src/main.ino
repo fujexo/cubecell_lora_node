@@ -1,5 +1,6 @@
 #include "LoRaWan_APP.h"
 #include "Arduino.h"
+#include <CayenneLPP.h>
 #include "Seeed_BME280.h"
 #include "ttnparams.h"
 
@@ -26,7 +27,7 @@ bool isTxConfirmed = LORAWAN_UPLINKMODE;
 uint8_t appPort = 2;
 uint8_t confirmedNbTrials = 4;
 
-int temperature, humidity, batteryVoltage;
+float temperature, humidity, batteryVoltage;
 long pressure;
 
 BME280 bme280;
@@ -56,7 +57,7 @@ static void prepareTxFrame( uint8_t port )
   // Wait for a little bit longer so the sensor can initialize correctly
   delay(500);
 
-  temperature = bme280.getTemperature() * 100;
+  temperature = bme280.getTemperature();
   humidity = bme280.getHumidity();
   pressure = bme280.getPressure();
 
@@ -67,23 +68,20 @@ static void prepareTxFrame( uint8_t port )
 
   batteryVoltage = getBatteryVoltage();
 
+  // Convert millivolts to volts for CayenneLPP
+  batteryVoltage /= 1000;
+
   // Correct the pressure based on the approximate altitude
   int i_pressure_corrected = ((pressure / pow((1 - ALTITUDE / 44330), 5.255)) / 100);
 
-  appDataSize = 10;
-  appData[0] = highByte(temperature);
-  appData[1] = lowByte(temperature);
+  CayenneLPP lpp(LORAWAN_APP_DATA_MAX_SIZE);
+  lpp.addTemperature(1, temperature);
+  lpp.addRelativeHumidity(1, humidity);
+  lpp.addBarometricPressure(1, i_pressure_corrected);
+  lpp.addVoltage(1, batteryVoltage);
 
-  appData[2] = highByte(humidity);
-  appData[3] = lowByte(humidity);
-
-  appData[4] = (byte) ((i_pressure_corrected & 0xFF000000) >> 24 );
-  appData[5] = (byte) ((i_pressure_corrected & 0x00FF0000) >> 16 );
-  appData[6] = (byte) ((i_pressure_corrected & 0x0000FF00) >> 8  );
-  appData[7] = (byte) ((i_pressure_corrected & 0X000000FF)       );
-
-  appData[8] = highByte(batteryVoltage);
-  appData[9] = lowByte(batteryVoltage);
+  appDataSize = lpp.getSize();
+  memcpy(appData, lpp.getBuffer(), appDataSize);
 }
 
 void setup() {
